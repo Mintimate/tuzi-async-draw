@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.fade-enter-active, .fade-leave-active {
+    transition: opacity 0.5s ease;
+}
+.fade-enter-from, .fade-leave-to {
+    opacity: 0;
+}
+
+/* 优化下拉框和输入框样式 */
+@layer base {
+    select, input[type="text"], input[type="password"], textarea {
+        @apply block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-900 border text-sm transition-all duration-200;
+        @apply focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none;
+        min-height: 42px;
+    }
+
+    select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 0.75rem center;
+        background-repeat: no-repeat;
+        background-size: 1.25em 1.25em;
+        padding-right: 2.5rem !important;
+    }
+
+    /* 统一 datalist 输入框的下拉箭头 (下角标) */
+    input[list] {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 0.75rem center;
+        background-repeat: no-repeat;
+        background-size: 1.25em 1.25em;
+        padding-right: 2.5rem !important;
+    }
+
+    /* 隐藏 Chrome/Safari 原生的 datalist 箭头，使用我们统一的 SVG */
+    input::-webkit-calendar-picker-indicator {
+        opacity: 0;
+        cursor: pointer;
+    }
+}
