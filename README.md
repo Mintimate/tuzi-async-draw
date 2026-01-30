@@ -2,6 +2,24 @@
 
 这是一个基于 Vite + Vue 3 的单页应用，用于调用 Tuzi API 进行异步图片生成。
 
+## 在 EdgeOne Pages 上部署 (一键部署)
+
+这是一个兼容 EdgeOne Pages 的静态前端项目（Vite 构建，输出到 `dist`）。你可以通过 EdgeOne Pages 一键部署或手动配置构建：
+
+一键部署：
+
+[![使用 EdgeOne Pages 部署](https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg)](https://console.cloud.tencent.com/edgeone/pages/new?repository-url=https://github.com/Mintimate/tuzi-async-draw)
+
+手动部署配置：
+
+- 框架预设：Node.js（或留空，EdgeOne 会识别 `edgeone.json`）
+- 构建命令：`npm run build`
+- 输出目录：`dist`
+- Node 版本：`22`
+
+更多 EdgeOne Pages文档：https://pages.edgeone.ai/zh/document/product-introduction
+
+
 ## 功能
 
 1.  **创建任务**: 配置 API Token、选择模型、输入提示词。支持**多张参考图片**上传或直接粘贴**图片 URL**（支持多个）。
