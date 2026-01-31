@@ -1,6 +1,10 @@
 <script setup>
-import { reactive, ref, watch, nextTick } from 'vue';
+import { reactive, ref, watch } from 'vue';
 import axios from 'axios';
+import ImageForm from './components/ImageForm.vue';
+import VideoForm from './components/VideoForm.vue';
+import LogConsole from './components/LogConsole.vue';
+import ResultDisplay from './components/ResultDisplay.vue';
 
 const config = reactive({
     baseUrl: localStorage.getItem('tuzi_api_base_url') || 'https://api.tu-zi.com',
@@ -9,8 +13,6 @@ const config = reactive({
 
 // Logs System
 const logs = ref([]);
-const logConsoleRef = ref(null);
-
 const addLog = (content, type = 'info') => {
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
@@ -20,25 +22,13 @@ const addLog = (content, type = 'info') => {
         content,
         type
     });
-    
-    nextTick(() => {
-        if (logConsoleRef.value) {
-            logConsoleRef.value.scrollTop = logConsoleRef.value.scrollHeight;
-        }
-    });
 };
 
 // 自动保存配置
 watch(() => config.baseUrl, (val) => localStorage.setItem('tuzi_api_base_url', val));
 watch(() => config.token, (val) => localStorage.setItem('tuzi_api_token', val));
 
-const form = reactive({
-    model: 'gemini-3-pro-image-preview-async',
-    size: '', // 默认值为空
-    prompt: '',
-    files: [],
-    imageUrl: '' // 文字形式的 URL 或者 file:// 路径
-});
+const activeTab = ref('image'); // 'image' | 'video'
 
 const loading = reactive({
     submit: false,
@@ -53,39 +43,40 @@ const error = reactive({
 const submitResult = ref(null);
 const queryTaskId = ref('');
 const queryResult = ref(null);
-const fileInput = ref(null);
 
-const handleFileChange = (e) => {
-    const selectedFiles = Array.from(e.target.files);
-    if (selectedFiles.length > 0) {
-        form.files = selectedFiles;
-    } else {
-        form.files = [];
-    }
-};
+// Reset state when switching tabs
+watch(activeTab, () => {
+    submitResult.value = null;
+    queryResult.value = null;
+    queryTaskId.value = '';
+    logs.value = [];
+    stopPolling();
+    addLog(`切换到${activeTab.value === 'image' ? '图片' : '视频'}生成模式`, 'info');
+});
 
-const submitTask = async () => {
+const submitTask = async (formDataObj) => {
     loading.submit = true;
     error.submit = null;
     submitResult.value = null;
-    logs.value = []; // 清空之前的日志
-    addLog(`开始创建任务 [${form.model}]...`, 'info');
+    logs.value = []; 
+    addLog(`开始创建任务 [${formDataObj.model}]...`, 'info');
 
     try {
         const formData = new FormData();
-        formData.append('model', form.model);
-        formData.append('prompt', form.prompt);
-        if (form.size) formData.append('size', form.size);
+        formData.append('model', formDataObj.model);
+        formData.append('prompt', formDataObj.prompt);
+        if (formDataObj.size) formData.append('size', formDataObj.size);
+        if (formDataObj.seconds) formData.append('seconds', formDataObj.seconds);
+        if (formDataObj.watermark !== undefined) formData.append('watermark', formDataObj.watermark);
         
-        // input_reference 逻辑：如果有文件，优先传文件；没有文件则看 URL
-        if (form.files && form.files.length > 0) {
-            form.files.forEach(file => {
+        // input_reference 逻辑
+        if (formDataObj.files && formDataObj.files.length > 0) {
+            formDataObj.files.forEach(file => {
                 formData.append('input_reference', file);
                 addLog(`添加参考图片: ${file.name}`, 'info');
             });
-        } else if (form.imageUrl) {
-            // 支持用换行、逗号或空格分隔的多个 URL
-            const urls = form.imageUrl.split(/[\n,\s]+/).map(u => u.trim()).filter(u => u);
+        } else if (formDataObj.imageUrl) {
+            const urls = formDataObj.imageUrl.split(/[\n,\s]+/).map(u => u.trim()).filter(u => u);
             urls.forEach(url => {
                 formData.append('input_reference', url);
                 addLog(`添加参考 URL: ${url}`, 'info');
@@ -106,7 +97,6 @@ const submitTask = async () => {
 
         if (response.data.id) {
             queryTaskId.value = response.data.id;
-            // 启动自动轮询
             addLog(`准备开始轮询任务状态...`, 'info');
             startPolling(response.data.id);
         }
@@ -135,20 +125,15 @@ const stopPolling = () => {
 
 const startPolling = (taskId) => {
     if (!taskId) return;
-    // 同步 Task ID (防止不一致)
     queryTaskId.value = taskId;
 
     stopPolling(); 
     isAutoRefreshing.value = true;
     
-    // addLog(`开始轮询任务: ${taskId}`, 'info'); // 上面已经加过了
-    
-    const interval = 5000; // 5 seconds
+    const interval = 5000; 
     
     const poll = async () => {
         if (!isAutoRefreshing.value) return;
-        
-        // 自动刷新时，不占用全局 loading.query 状态，以免干扰 UI 交互
         
         try {
             const response = await axios.get(`${config.baseUrl.replace(/\/$/, '')}/v1/videos/${taskId}`, {
@@ -163,13 +148,12 @@ const startPolling = (taskId) => {
             );
 
             if (data.status === 'completed' || data.status === 'failed') {
-                isAutoRefreshing.value = false; // 完成后停止
+                isAutoRefreshing.value = false; 
                 if (data.status === 'completed') addLog('任务已完成!', 'success');
                 if (data.status === 'failed') addLog('任务执行失败.', 'error');
                 return;
             }
             
-            // 继续下一次
             if (isAutoRefreshing.value) {
                 pollingTimer.value = setTimeout(poll, interval);
             }
@@ -177,15 +161,13 @@ const startPolling = (taskId) => {
         } catch (err) {
             console.error("Polling error:", err);
             addLog(`轮询请求出错: ${err.message}`, 'warning');
-                // 出错继续尝试 (网络波动等)，直到用户手动停止
                 if (isAutoRefreshing.value) {
                 pollingTimer.value = setTimeout(poll, interval);
                 }
         }
     };
     
-    // 建议等待
-    pollingTimer.value = setTimeout(poll, 1000); // 首次稍微快一点
+    pollingTimer.value = setTimeout(poll, 1000); 
 };
 
 const toggleAutoRefresh = () => {
@@ -197,7 +179,6 @@ const toggleAutoRefresh = () => {
 };
 
 const queryTask = async () => {
-    // 手动查询时，取消自动刷新
     stopPolling();
 
     if (!queryTaskId.value) return;
@@ -236,7 +217,7 @@ const queryTask = async () => {
                 <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-2">
                     Tuzi Async Draw
                 </h1>
-                <p class="text-lg text-gray-600">基于 Tuzi API 的高性能异步生图工具</p>
+                <p class="text-lg text-gray-600">基于 Tuzi API 的高性能异步生图/视频工具</p>
             </header>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -253,11 +234,11 @@ const queryTask = async () => {
                         <div class="p-6 space-y-4">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">API Base URL</label>
-                                <input v-model="config.baseUrl" type="text" placeholder="https://api.tu-zi.com">
+                                <input v-model="config.baseUrl" type="text" placeholder="https://api.tu-zi.com" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Token</label>
-                                <input v-model="config.token" type="password" placeholder="sk-...">
+                                <input v-model="config.token" type="password" placeholder="sk-..." class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                             </div>
 
                             <div class="pt-2 text-xs flex flex-col gap-2">
@@ -275,82 +256,31 @@ const queryTask = async () => {
 
                     <!-- Create Task Card -->
                     <div class="bg-white rounded-2xl shadow-xl shadow-indigo-100/50 border border-gray-100 overflow-hidden">
-                        <div class="bg-indigo-600 px-6 py-4 border-b border-indigo-500">
-                             <h2 class="text-lg font-bold text-white flex items-center">
-                                ✨ 创建任务
-                            </h2>
+                        <!-- Tabs -->
+                        <div class="flex border-b border-gray-200">
+                            <button 
+                                @click="activeTab = 'image'"
+                                :class="activeTab === 'image' ? 'bg-indigo-600 text-white' : 'bg-gray-50 text-gray-500 hover:text-gray-700'"
+                                class="w-1/2 py-4 text-center text-sm font-bold transition-colors">
+                                🖼️ 图像生成
+                            </button>
+                            <button 
+                                @click="activeTab = 'video'"
+                                :class="activeTab === 'video' ? 'bg-purple-600 text-white' : 'bg-gray-50 text-gray-500 hover:text-gray-700'"
+                                class="w-1/2 py-4 text-center text-sm font-bold transition-colors">
+                                🎬 视频生成
+                            </button>
                         </div>
                         
-                        <form @submit.prevent="submitTask" class="p-6 space-y-5">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">模型 (Model)</label>
-                                <select v-model="form.model">
-                                    <option value="gemini-3-pro-image-preview-async">Gemini 3 Pro (1k)</option>
-                                    <option value="gemini-3-pro-image-preview-2k-async">Gemini 3 Pro (2k)</option>
-                                    <option value="gemini-3-pro-image-preview-4k-async">Gemini 3 Pro (4k)</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">尺寸 (Size)</label>
-                                <div class="relative">
-                                    <input v-model="form.size" list="size-options" type="text" placeholder="例如 1:1, 16:9...">
-                                    <datalist id="size-options">
-                                        <option value="1:1" />
-                                        <option value="16:9" />
-                                        <option value="21:9" />
-                                        <option value="3:2" />
-                                        <option value="3:4" />
-                                        <option value="4:3" />
-                                        <option value="4:5" />
-                                        <option value="5:4" />
-                                        <option value="9:16" />
-                                    </datalist>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">提示词 (Prompt)</label>
-                                <textarea v-model="form.prompt" rows="4" class="resize-none" placeholder="描述你想要生成的画面..." required></textarea>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">参考图 (可选)</label>
-                                
-                                <div class="w-full">
-                                    <label class="flex justify-center w-full h-32 px-4 transition bg-white border-2 border-gray-300 border-dashed rounded-xl appearance-none cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 focus:outline-none relative overflow-hidden">
-                                        
-                                        <div v-if="form.files && form.files.length > 0" class="flex flex-col items-center justify-center h-full text-green-600">
-                                             <svg class="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                            <span class="text-sm font-medium">{{ form.files.length }} 个文件已选择</span>
-                                            <span class="text-xs text-green-500 mt-1">点击更换 (支持多选)</span>
-                                        </div>
-
-                                        <div v-else class="flex flex-col items-center justify-center h-full">
-                                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                            <span class="mt-2 text-sm text-gray-500">点击上传或拖拽 (支持多选)</span>
-                                        </div>
-                                        
-                                        <input type="file" ref="fileInput" @change="handleFileChange" accept="image/*" multiple class="hidden">
-                                    </label>
-                                    
-                                     <div v-if="!form.files || form.files.length === 0" class="mt-3">
-                                        <input v-model="form.imageUrl" type="text" placeholder="或者直接粘贴图片 URL (多个用空格或逗号分开)">
-                                    </div>
-                                    
-                                    <div v-if="form.files && form.files.length > 0" class="mt-3 flex flex-wrap gap-2">
-                                        <span v-for="(file, idx) in form.files" :key="idx" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                                            {{ file.name }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button type="submit" :disabled="loading.submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200">
-                                <svg v-if="loading.submit" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                {{ loading.submit ? '正在提交...' : '开始生成' }}
-                            </button>
-                        </form>
+                        <div class="bg-indigo-600 h-1" :class="activeTab === 'video' ? 'bg-purple-600' : 'bg-indigo-600'"></div>
+                        
+                        <!-- Content -->
+                        <div v-show="activeTab === 'image'">
+                            <ImageForm :loading="loading.submit" @submit="submitTask" />
+                        </div>
+                        <div v-show="activeTab === 'video'">
+                            <VideoForm :loading="loading.submit" @submit="submitTask" />
+                        </div>
                     </div>
                 </div>
 
@@ -363,8 +293,8 @@ const queryTask = async () => {
                             <h2 class="text-xl font-bold text-gray-900">任务状态</h2>
                             <div class="flex gap-2">
                                 <div class="relative w-full sm:w-64">
-                                     <input v-model="queryTaskId" type="text" class="pr-10" placeholder="任务 ID">
-                                     <div class="absolute inset-y-0 right-0 flex items-center">
+                                     <input v-model="queryTaskId" type="text" class="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="任务 ID">
+                                     <div class="absolute inset-y-0 right-0 flex items-center bg-transparent">
                                          <button @click="queryTask" :disabled="!queryTaskId || loading.query" class="h-full px-3 text-gray-400 hover:text-indigo-600 transition-colors">
                                              <svg class="w-5 h-5" :class="{'animate-spin': loading.query}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                                          </button>
@@ -377,70 +307,23 @@ const queryTask = async () => {
                                       <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                       <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                                     </span>
-                                    {{ isAutoRefreshing ? '停止轮询' : '自动轮询' }}
+                                    {{ isAutoRefreshing ? '停止' : '轮询' }}
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Feedback Messages (Replaced by Console) -->
-                        <div class="bg-gray-900 rounded-xl shadow-inner border border-gray-800 p-4 mb-6 font-mono text-xs sm:text-sm h-64 overflow-y-auto custom-scrollbar flex flex-col" ref="logConsoleRef">
-                            <div v-if="logs.length === 0" class="flex items-center justify-center h-full text-gray-700 select-none">
-                                <span class="animate-pulse">等待任务启动...</span>
-                            </div>
-                            <div v-for="log in logs" :key="log.id" class="mb-1 break-all flex items-start">
-                                <span class="text-gray-500 mr-2 shrink-0 select-none">[{{ log.time }}]</span>
-                                <span :class="{
-                                    'text-blue-400': log.type === 'info',
-                                    'text-green-400': log.type === 'success',
-                                    'text-red-400': log.type === 'error',
-                                    'text-yellow-400': log.type === 'warning'
-                                }">
-                                    <span v-if="log.type === 'info'" class="mr-1">ℹ️</span>
-                                    <span v-else-if="log.type === 'success'" class="mr-1">✅</span>
-                                    <span v-else-if="log.type === 'error'" class="mr-1">❌</span>
-                                    <span v-else-if="log.type === 'warning'" class="mr-1">⚠️</span>
-                                    {{ log.content }}
-                                </span>
-                            </div>
-                        </div>
+                        <!-- Logs Console -->
+                        <LogConsole :logs="logs" />
 
-                        <!-- Preview Area -->
-                        <div class="border-2 border-dashed border-gray-200 rounded-xl min-h-[400px] flex flex-col items-center justify-center bg-gray-50/50 relative overflow-hidden group">
-                            
-                            <template v-if="queryResult && queryResult.video_url">
-                                <img :src="queryResult.video_url" alt="Result" class="max-w-full max-h-[600px] object-contain shadow-lg rounded-lg">
-                                <div class="absolute bottom-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                    <a :href="queryResult.video_url" target="_blank" class="p-2 bg-white rounded-full shadow-lg text-gray-700 hover:text-indigo-600 hover:scale-110 transition">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                    </a>
-                                    <a :href="queryResult.video_url" target="_blank" class="p-2 bg-white rounded-full shadow-lg text-gray-700 hover:text-indigo-600 hover:scale-110 transition">
-                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                                    </a>
-                                </div>
-                            </template>
-                            
-                            <template v-else-if="loading.submit || loading.query">
-                                <div class="flex flex-col items-center justify-center">
-                                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
-                                    <p class="text-gray-500 animate-pulse">处理中...</p>
-                                </div>
-                            </template>
-
-                            <template v-else>
-                                <div class="text-gray-400 text-center">
-                                    <svg class="w-16 h-16 mx-auto mb-3 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                    <p>生成结果将在此显示</p>
-                                </div>
-                            </template>
-
-                        </div>
+                        <!-- Result Display -->
+                        <ResultDisplay :result="queryResult" :loading="loading.submit || loading.query" :mode="activeTab" />
                         
-                        <!-- Video/Image Metadata -->
+                        <!-- Metadata -->
                          <div v-if="queryResult" class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-xl text-xs sm:text-sm border border-gray-100">
                              <div>
                                  <span class="block text-gray-400 font-medium uppercase tracking-wider text-[10px]">Status</span>
-                                 <span :class="{'text-green-600': queryResult.status === 'completed', 'text-yellow-600': queryResult.status === 'processing', 'text-red-600': queryResult.status === 'failed'}" class="font-bold flex items-center">
-                                     <span v-if="queryResult.status === 'processing'" class="w-2 h-2 rounded-full bg-yellow-400 mr-1.5 animate-pulse"></span>
+                                 <span :class="{'text-green-600': queryResult.status === 'completed', 'text-yellow-600': queryResult.status === 'processing' || queryResult.status === 'queued', 'text-red-600': queryResult.status === 'failed'}" class="font-bold flex items-center">
+                                     <span v-if="queryResult.status === 'processing' || queryResult.status === 'queued'" class="w-2 h-2 rounded-full bg-yellow-400 mr-1.5 animate-pulse"></span>
                                      {{ queryResult.status }}
                                  </span>
                              </div>
@@ -450,7 +333,7 @@ const queryTask = async () => {
                              </div>
                               <div class="col-span-2 sm:col-span-2">
                                  <span class="block text-gray-400 font-medium uppercase tracking-wider text-[10px]">Created</span>
-                                 <span class="font-mono text-gray-600">{{ queryResult.created_at ? new Date(queryResult.created_at).toLocaleString() : '-' }}</span>
+                                 <span class="font-mono text-gray-600">{{ queryResult.created_at ? new Date(queryResult.created_at * 1000).toLocaleString() : '-' }}</span>
                              </div>
                          </div>
 
