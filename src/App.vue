@@ -214,6 +214,17 @@ const queryTask = async () => {
                                 <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Token</label>
                                 <input v-model="config.token" type="password" placeholder="sk-...">
                             </div>
+
+                            <div class="pt-2 text-xs flex flex-col gap-2">
+                                <a href="https://api.tu-zi.com/register?aff=SJ33" target="_blank" class="text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1.5 transition-colors">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
+                                    注册获取 Token (邀请码: SJ33)
+                                </a>
+                                <a href="https://tuzi-api.apifox.cn/412175236e0" target="_blank" class="text-gray-500 hover:text-indigo-600 hover:underline flex items-center gap-1.5 transition-colors">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    查看 API 接口文档
+                                </a>
+                            </div>
                         </div>
                     </div>
 
@@ -404,6 +415,15 @@ const queryTask = async () => {
                     
                 </div>
             </div>
+            
+            <!-- Footer -->
+            <footer class="mt-12 text-center border-t border-gray-200 pt-8">
+                <div class="flex flex-wrap justify-center gap-6 mb-4">
+                    <a href="https://github.com/Mintimate/tuzi-async-draw" target="_blank" class="text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors">GitHub</a>
+                    <a href="https://cnb.cool/Mintimate/tool-forge/tuzi-async-draw" target="_blank" class="text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors">CNB 镜像</a>
+                </div>
+                <p class="text-sm text-gray-400">Mintimate 打造 · EdgeOne Pages 驱动</p>
+            </footer>
         </div>
     </div>
 </template>
