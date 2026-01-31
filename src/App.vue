@@ -218,7 +218,7 @@ const queryTask = async () => {
             <!-- Header -->
             <header class="text-center mb-12">
                 <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-2">
-                    Tuzi Async Draw
+                    Tuzi Async Studio
                 </h1>
                 <p class="text-lg text-gray-600">基于 Tuzi API 的高性能异步生图/视频工具</p>
             </header>
