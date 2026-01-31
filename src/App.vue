@@ -11,6 +11,9 @@ const config = reactive({
     token: localStorage.getItem('tuzi_api_token') || ''
 });
 
+// Token visibility
+const showToken = ref(false);
+
 // Logs System
 const logs = ref([]);
 const addLog = (content, type = 'info') => {
@@ -238,7 +241,10 @@ const queryTask = async () => {
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Token</label>
-                                <input v-model="config.token" type="password" placeholder="sk-..." class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <input v-model="config.token" :type="showToken ? 'text' : 'password'" placeholder="sk-..." class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <div class="mt-2">
+                                    <button type="button" @click="showToken = !showToken" class="text-sm text-indigo-600 hover:text-indigo-800">{{ showToken ? '隐藏' : '显示' }}</button>
+                                </div>
                             </div>
 
                             <div class="pt-2 text-xs flex flex-col gap-2">
