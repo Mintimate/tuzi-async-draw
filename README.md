@@ -19,6 +19,23 @@
 
 更多 EdgeOne Pages文档：https://pages.edgeone.ai/zh/document/product-introduction
 
+### 配置 KV 存储（Passkey 功能必需）
+
+如果需要使用 Passkey 功能同步 API Token，需要配置 KV 存储：
+
+1. **创建 KV 命名空间**
+   - 在 EdgeOne Pages 控制台创建 KV 命名空间
+   - 进入项目设置 > 存储
+
+2. **绑定 KV 到项目**
+   - 将 KV 命名空间绑定到项目
+   - 变量名设为：`PASSKEY_KV`
+
+3. **重新部署项目**
+   - 绑定 KV 后需要重新部署项目才能生效
+
+配置完成后，即可在前端使用 Passkey 功能来同步和管理 API Token。
+
 
 ## 功能
 
@@ -26,7 +43,8 @@
 2.  **灵活参数**: 预设多种生成尺寸（1:1, 16:9 等）与视频时长，支持自定义或留空。
 3.  **查询结果**: 使用任务 ID 查询生成状态，支持自动轮询，并在生成完成后查看结果图片或视频。
 4.  **自动刷新**: 后台自动轮询任务状态（5 秒间隔），支持手动启停。
-5.  **UI 优化**: 统一的表单交互设计，优化了下拉框与输入框的视觉协同，支持响应式布局。
+5.  **Passkey 同步**: 支持使用 Passkey 来同步存储 API Token，基于 EdgeOne Pages 的 KV 存储。
+6.  **UI 优化**: 统一的表单交互设计，优化了下拉框与输入框的视觉协同，支持响应式布局。
 
 ## 开发与运行
 
@@ -56,6 +74,7 @@ npm run build
 
 *   **API Base URL**: 默认为 `https://api.tu-zi.com`。
 *   **Token**: 你的 API 密钥。
+*   **Passkey**: (可选) 用于在 KV 存储中同步 Token，需要配置 EdgeOne Pages KV 存储。
 *   配置会自动保存在本地浏览器缓存中。
 
 ## 文件结构
@@ -71,4 +90,18 @@ npm run build
 
 *   代码中假设 API 支持跨域请求 (CORS)。
 *   查询结果返回字段名为 `video_url`，但实际内容为图片，工具已做适配显示。
+*   Passkey 功能依赖 EdgeOne Pages 的 KV 存储，需要在部署时配置并绑定 KV 命名空间。
+
+## 常见问题
+
+### KV 存储配置问题
+
+1. **Passkey 功能不可用**
+   - 检查 KV 命名空间是否正确绑定
+   - 确认变量名为 `PASSKEY_KV`
+   - 重新部署项目
+
+2. **KV 存储连接失败**
+   - 检查 EdgeOne Pages 控制台的 KV 绑定状态
+   - 确认 KV 命名空间已创建
 
