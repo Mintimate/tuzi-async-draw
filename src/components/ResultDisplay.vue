@@ -11,10 +11,12 @@ const props = defineProps({
 });
 
 const isVideo = computed(() => {
-    if (props.result?.object === 'video') return true;
-    if (props.result?.video_url?.match(/\.(mp4|webm|mov)$/i)) return true;
-    if (props.result?.object === 'image') return false;
+    // 优先根据 URL 后缀判断，防止 object 类型与实际文件不符
     if (props.result?.video_url?.match(/\.(jpg|jpeg|png|gif|webp|bmp|tiff)$/i)) return false;
+    if (props.result?.video_url?.match(/\.(mp4|webm|mov)$/i)) return true;
+
+    if (props.result?.object === 'video') return true;
+    if (props.result?.object === 'image') return false;
 
     if (props.mode === 'video') return true;
     return false;

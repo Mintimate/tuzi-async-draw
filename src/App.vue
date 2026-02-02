@@ -359,9 +359,9 @@ const queryTask = async () => {
                                  <span class="block text-gray-400 font-medium uppercase tracking-wider text-[10px]">Progress</span>
                                  <span class="font-medium text-gray-700">{{ queryResult.progress || 0 }}%</span>
                              </div>
-                              <div class="col-span-2 sm:col-span-2">
+                             <div class="col-span-2 sm:col-span-2">
                                  <span class="block text-gray-400 font-medium uppercase tracking-wider text-[10px]">Created</span>
-                                 <span class="font-mono text-gray-600">{{ queryResult.created_at ? new Date(queryResult.created_at * 1000).toLocaleString() : '-' }}</span>
+                                 <span class="font-mono text-gray-600">{{ queryResult.created_at ? new Date(queryResult.created_at).toLocaleString() : '-' }}</span>
                              </div>
                          </div>
 
