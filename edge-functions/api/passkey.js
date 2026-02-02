@@ -19,7 +19,7 @@
  * 注意：本版本使用原生 Web Crypto API，不依赖 @simplewebauthn/server
  */
 
-const VERSION = '1.0.2'; // 1.0.2: fix challenge cleanup and defer credential deletion
+const VERSION = '1.0.3'; // 1.0.3: add cancelChallenge action
 
 // 响应码
 const RES_CODE = {
@@ -97,6 +97,9 @@ export async function onRequest(context) {
         break;
       case 'deleteCredential':
         res = await handleDeleteCredential(data);
+        break;
+      case 'cancelChallenge':
+        res = await handleCancelChallenge(data);
         break;
       default:
         res = { code: RES_CODE.FAIL, message: '未知操作' };
@@ -741,6 +744,14 @@ async function handleDeleteCredential(data) {
     code: RES_CODE.SUCCESS,
     data: { deleted: true }
   };
+}
+
+async function handleCancelChallenge(data) {
+  const { challengeId } = data;
+  if (challengeId) {
+    await getAndDeleteChallenge(challengeId);
+  }
+  return { code: RES_CODE.SUCCESS, message: 'Challenge 已清理' };
 }
 
 // ==================== 辅助函数 ====================
