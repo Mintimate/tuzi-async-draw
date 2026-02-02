@@ -63,7 +63,7 @@ const queryResult = ref(null);
 watch(activeTab, () => {
     submitResult.value = null;
     queryResult.value = null;
-    queryTaskId.value = '';
+    // queryTaskId.value = '';
     logs.value = [];
     stopPolling();
     addLog(`切换到${activeTab.value === 'image' ? '图片' : '视频'}生成模式`, 'info');
