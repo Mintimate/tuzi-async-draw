@@ -2,19 +2,24 @@
  * Tuzi Async Studio - Passkey Edge Function (无外部依赖版本)
  * (c) 2025-present Mintimate
  * Released under the MIT License.
- * 
- * 使用 EdgeOne Pages KV 存储 Passkey 凭证
+ *
+ * 使用 EdgeOne Pages KV 存储 Passkey 凭证与临时 Challenge
  * KV 命名空间需要在 EdgeOne Pages 控制台绑定，变量名：TUZI_KV
- * 
- * 存储结构：
- * - passkey:user:{userId}       - 用户信息（包含 token）
- * - passkey:credential:{credId} - 凭证信息
- * - passkey:challenge:{challengeId} - 临时 challenge 存储
- * 
+ *
+ * 存储结构（简述）：
+ * - passkey:user:{userId}          - 用户信息（包含 token、credential 列表、以及当前活跃的 challenge 指针）
+ * - passkey:credential:{credId}    - 凭证信息（公钥、计数器、创建时间等）
+ * - passkey:challenge:{challengeId}- 临时 challenge 存储（用于注册/认证/管理令牌流程，带 TTL）
+ *
+ * 重要设计说明：
+ * - Challenge 有 TTL（默认 5 分钟）作为兜底，但在前端中断或重试时，单纯依赖 TTL 会导致短时间内 KV 中残留脏数据。
+ * - 为确保每个用户只保留一个活跃 challenge，服务端会在保存 challenge 时在对应用户对象上记录 `currentChallengeId`，
+ *   并在生成新的 challenge 或消费（验证）时进行同步清理。这样能避免临时 key 在 KV 中堆积，同时无需列出 KV 键或依赖额外的清理任务。
+ *
  * 注意：本版本使用原生 Web Crypto API，不依赖 @simplewebauthn/server
  */
 
-const VERSION = '1.0.0';
+const VERSION = '1.0.2'; // 1.0.2: fix challenge cleanup and defer credential deletion
 
 // 响应码
 const RES_CODE = {
@@ -257,10 +262,31 @@ async function saveChallenge(challengeId, data) {
   }, { expirationTtl: 300 });
 }
 
+/**
+ * 获取并删除一个 challenge，同时清理任何与之关联的用户指针（`currentChallengeId`）。
+ * 说明：
+ * - 在验证流程中（verifyRegistration / verifyAuthentication / generateManagementToken），我们会调用此函数以一次性消费 challenge。
+ * - 如果该 challenge 与用户相关联（保存时记录了 userId），则会额外清理用户对象上保存的 `currentChallengeId`，避免过期或中断操作后用户对象仍指向已删除的 challenge。
+ * - 清理失败不会阻止验证主流程，但会记录日志以便排查。
+ */
 async function getAndDeleteChallenge(challengeId) {
   const data = await kvGet(`passkey:challenge:${challengeId}`);
   if (data) {
     await kvDelete(`passkey:challenge:${challengeId}`);
+
+    // 如果该 challenge 与用户相关，清理用户对象上的指针
+    if (data.userId) {
+      try {
+        const user = await getUser(data.userId);
+        if (user && user.currentChallengeId === challengeId) {
+          delete user.currentChallengeId;
+          await saveUser(user);
+        }
+      } catch (e) {
+        console.error('getAndDeleteChallenge cleanup error:', e);
+        // 清理失败不影响主流程
+      }
+    }
   }
   return data;
 }
@@ -296,16 +322,16 @@ async function handleGenerateRegistrationOptions(data, rpConfig) {
   // 获取用户现有凭证
   let user = await getUser(userId);
   
+  // 清理旧 Challenge，防止脏数据堆积
+  if (user && user.currentChallengeId) {
+    await kvDelete(`passkey:challenge:${user.currentChallengeId}`);
+  }
+  
   if (user) {
-    // 如果用户已存在，删除所有现有凭证以支持更新
-    const existingCredentials = await getUserCredentials(userId);
-    for (const cred of existingCredentials) {
-      await deleteCredential(cred.id);
-    }
-    // 更新用户 token（预先更新，以防注册失败也能保留新 token）
+    // 更新用户 token
     user.token = token;
     user.updatedAt = Date.now();
-    await saveUser(user);
+    // 注意：此处不再预先删除凭证，改为在 verifyRegistration 成功后清理
   } else {
     // 创建新用户
     user = {
@@ -315,7 +341,6 @@ async function handleGenerateRegistrationOptions(data, rpConfig) {
       credentialIds: [],
       createdAt: Date.now()
     };
-    await saveUser(user);
   }
   
   // 生成 challenge（32 字节随机数）
@@ -359,6 +384,11 @@ async function handleGenerateRegistrationOptions(data, rpConfig) {
   
   // 保存 challenge
   const challengeId = generateUUID();
+  
+  // 记录当前 Challenge ID 到用户对象
+  user.currentChallengeId = challengeId;
+  await saveUser(user);
+  
   await saveChallenge(challengeId, {
     challenge,
     userId,
@@ -424,6 +454,15 @@ async function handleVerifyRegistration(data, rpConfig) {
     
     await saveCredential(newCredential);
     
+    // 清理旧凭证（实现“更换 Passkey”逻辑）
+    // 获取用户所有凭证，删除除当前新凭证外的其他凭证
+    const allCredentials = await getUserCredentials(challengeData.userId);
+    for (const cred of allCredentials) {
+      if (cred.id !== newCredential.id) {
+        await deleteCredential(cred.id);
+      }
+    }
+    
     // 更新用户 token
     const user = await getUser(challengeData.userId);
     if (user) {
@@ -455,6 +494,13 @@ async function handleGenerateAuthenticationOptions(data, rpConfig) {
   
   if (username) {
     userId = await generateUserIdFromUsername(username);
+    
+    // 清理旧 Challenge
+    const user = await getUser(userId);
+    if (user && user.currentChallengeId) {
+      await kvDelete(`passkey:challenge:${user.currentChallengeId}`);
+    }
+
     const credentials = await getUserCredentials(userId);
     
     if (credentials.length === 0) {
@@ -483,6 +529,16 @@ async function handleGenerateAuthenticationOptions(data, rpConfig) {
   
   // 保存 challenge
   const challengeId = generateUUID();
+  
+  // 如果关联了用户，更新 currentChallengeId
+  if (userId) {
+    const user = await getUser(userId);
+    if (user) {
+      user.currentChallengeId = challengeId;
+      await saveUser(user);
+    }
+  }
+  
   await saveChallenge(challengeId, {
     challenge,
     userId
