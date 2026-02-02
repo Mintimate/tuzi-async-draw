@@ -361,9 +361,9 @@ const queryTask = async () => {
                         <ResultDisplay :result="queryResult" :loading="loading.submit || loading.query" :mode="activeTab" />
                         
                         <!-- Metadata -->
-                         <div v-if="queryResult" class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-xl text-xs sm:text-sm border border-gray-100">
+                         <div v-if="queryResult" class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-xl text-xs sm:text-sm border border-gray-100">
                              <div>
-                                 <span class="block text-gray-400 font-medium uppercase tracking-wider text-[10px]">Status</span>
+                                 <span class="block text-gray-400 font-medium uppercase tracking-wider text-[10px] mb-1">Status</span>
                                  <span :class="statusInfo(queryResult.status).colorClass" class="font-bold flex items-center">
                                      <span v-if="statusInfo(queryResult.status).pulse" class="relative flex h-2 w-2 mr-2">
                                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
@@ -375,7 +375,7 @@ const queryTask = async () => {
                                  </span>
                              </div>
                              <div>
-                                 <span class="block text-gray-400 font-medium uppercase tracking-wider text-[10px]">Progress</span>
+                                 <span class="block text-gray-400 font-medium uppercase tracking-wider text-[10px] mb-1">Progress</span>
                                  <div class="w-full">
                                      <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                                          <div :style="{ width: (queryResult.progress || 0) + '%' }" class="h-full bg-indigo-500"></div>
@@ -383,8 +383,8 @@ const queryTask = async () => {
                                      <div class="mt-1 text-xs text-gray-500">{{ queryResult.progress || 0 }}%</div>
                                  </div>
                              </div>
-                             <div class="col-span-2 sm:col-span-2">
-                                 <span class="block text-gray-400 font-medium uppercase tracking-wider text-[10px]">Created</span>
+                             <div class="sm:col-span-2 lg:col-span-2">
+                                 <span class="block text-gray-400 font-medium uppercase tracking-wider text-[10px] mb-1">Created</span>
                                  <span class="font-mono text-gray-600">{{ queryResult.created_at ? new Date(queryResult.created_at).toLocaleString() : '-' }}</span>
                              </div>
                          </div>
