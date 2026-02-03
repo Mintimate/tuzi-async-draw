@@ -1,16 +1,28 @@
 <script setup>
-import { reactive, ref, watch } from 'vue';
 import axios from 'axios';
+import { reactive, ref, watch } from 'vue';
 import ImageForm from './components/ImageForm.vue';
-import VideoForm from './components/VideoForm.vue';
 import LogConsole from './components/LogConsole.vue';
-import ResultDisplay from './components/ResultDisplay.vue';
 import PasskeyManager from './components/PasskeyManager.vue';
+import ResultDisplay from './components/ResultDisplay.vue';
 import UsageGuide from './components/UsageGuide.vue';
+import VideoForm from './components/VideoForm.vue';
+
+// Token persistence
+const persistToken = ref(localStorage.getItem('tuzi_persist_token') === 'true');
+
+// 检查 URL 参数中的 token
+const urlParams = new URLSearchParams(window.location.search);
+const urlToken = urlParams.get('token');
+
+// 如果存在 URL Token 且开启了持久化，立即更新 localStorage
+if (urlToken && persistToken.value) {
+    localStorage.setItem('tuzi_api_token', urlToken);
+}
 
 const config = reactive({
     baseUrl: localStorage.getItem('tuzi_api_base_url') || 'https://api.tu-zi.com',
-    token: localStorage.getItem('tuzi_api_token') || ''
+    token: urlToken || (persistToken.value ? (localStorage.getItem('tuzi_api_token') || '') : '')
 });
 
 // Token visibility
@@ -52,7 +64,21 @@ const statusInfo = (s) => {
 
 // 自动保存配置
 watch(() => config.baseUrl, (val) => localStorage.setItem('tuzi_api_base_url', val));
-watch(() => config.token, (val) => localStorage.setItem('tuzi_api_token', val));
+
+watch(() => config.token, (val) => {
+    if (persistToken.value) {
+        localStorage.setItem('tuzi_api_token', val);
+    }
+});
+
+watch(persistToken, (val) => {
+    localStorage.setItem('tuzi_persist_token', val);
+    if (val) {
+        localStorage.setItem('tuzi_api_token', config.token);
+    } else {
+        localStorage.removeItem('tuzi_api_token');
+    }
+});
 
 const activeTab = ref('image'); // 'image' | 'video'
 
@@ -271,6 +297,19 @@ const queryTask = async () => {
                                         <svg v-else class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                                     </button>
                                 </div>
+                                
+                                <div v-if="urlToken && config.token === urlToken" class="mt-1 text-xs text-green-600 flex items-center">
+                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    已自动填充 URL Token
+                                </div>
+                                
+                                <div class="flex items-center mt-2">
+                                    <input id="persist-token" type="checkbox" v-model="persistToken" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                    <label for="persist-token" class="ml-2 block text-xs text-gray-500">
+                                        记住 Token (本地持久化)
+                                    </label>
+                                </div>
+
                                 <!-- Passkey 快捷入口 -->
                                 <div class="mt-3">
                                     <PasskeyManager 
