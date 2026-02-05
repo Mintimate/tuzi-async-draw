@@ -1,11 +1,16 @@
 <script setup>
 import { reactive, ref } from 'vue';
+import MaskEditor from './MaskEditor.vue';
 
 const props = defineProps({
     loading: Boolean
 });
 
 const emit = defineEmits(['submit']);
+
+const mode = ref('generate'); // 'generate' | 'inpainting'
+const maskEditorRef = ref(null);
+const inpaintingFile = ref(null);
 
 const form = reactive({
     model: 'gemini-3-pro-image-preview-4k-async',
@@ -16,6 +21,7 @@ const form = reactive({
 });
 
 const fileInput = ref(null);
+const inpaintingFileInput = ref(null);
 
 const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
@@ -26,13 +32,79 @@ const handleFileChange = (e) => {
     }
 };
 
-const handleSubmit = () => {
-    emit('submit', { ...form });
+const handleInpaintingFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        inpaintingFile.value = file;
+    }
+};
+
+const handleSubmit = async () => {
+    const submitData = { ...form };
+    
+    if (mode.value === 'inpainting') {
+        if (!inpaintingFile.value) {
+            // 这里可以加个提示，或者依赖 HTML5 required
+            return;
+        }
+        
+        // 拼接预置提示词
+        submitData.prompt = `编辑原图和蒙版差异部分，要求为${form.prompt}`;
+
+        // 获取蒙版
+        if (maskEditorRef.value) {
+            const maskBlob = await maskEditorRef.value.getMaskBlob();
+            if (maskBlob) {
+                const maskFile = new File([maskBlob], 'mask.png', { type: 'image/png' });
+                // 局部覆写模式下，files 存放底图和蒙版，均作为 input_reference 上传
+                submitData.files = [inpaintingFile.value, maskFile];
+            } else {
+                // 如果获取蒙版失败，至少上传底图
+                submitData.files = [inpaintingFile.value];
+            }
+        } else {
+             submitData.files = [inpaintingFile.value];
+        }
+        
+        submitData.modeType = 'inpainting';
+    } else {
+        submitData.modeType = 'generate';
+    }
+
+    emit('submit', submitData);
 };
 </script>
 
 <template>
     <form @submit.prevent="handleSubmit" class="p-6 space-y-5">
+        <!-- 模式切换 -->
+        <div class="flex p-1 space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+            <button 
+                type="button"
+                @click="mode = 'generate'"
+                :class="[
+                    'w-full py-2.5 text-sm font-medium rounded-md focus:outline-none transition-all duration-200',
+                    mode === 'generate' 
+                        ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow' 
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                ]"
+            >
+                文生图 / 图生图
+            </button>
+            <button 
+                type="button"
+                @click="mode = 'inpainting'"
+                :class="[
+                    'w-full py-2.5 text-sm font-medium rounded-md focus:outline-none transition-all duration-200',
+                    mode === 'inpainting' 
+                        ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow' 
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                ]"
+            >
+                局部覆写 (Inpainting)
+            </button>
+        </div>
+
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">模型 (Model)</label>
             <select v-model="form.model" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md border bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
@@ -43,7 +115,7 @@ const handleSubmit = () => {
             <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">实际值: {{ form.model }}</p>
         </div>
 
-        <div>
+        <div v-if="mode === 'generate'">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">尺寸 (Size)</label>
             <div class="relative">
                 <select v-model="form.size" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 rounded-md py-2 px-3 border bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
@@ -64,10 +136,39 @@ const handleSubmit = () => {
 
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">提示词 (Prompt)</label>
-            <textarea v-model="form.prompt" rows="4" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 rounded-md border p-2 resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" placeholder="描述你想要生成的画面..." required></textarea>
+            
+            <div v-if="mode === 'inpainting'" class="mb-2 p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm rounded-md border border-blue-100 dark:border-blue-800 flex items-center">
+                <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span>系统将自动添加前缀：<strong>"只编辑原图(图一)和蒙版(图二)差异部分，要求:"</strong></span>
+            </div>
+
+            <textarea v-model="form.prompt" rows="4" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 rounded-md border p-2 resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" :placeholder="mode === 'inpainting' ? '在此输入具体的修改要求...' : '描述你想要生成的画面...'" required></textarea>
         </div>
 
-        <div>
+        <!-- 局部覆写模式下的图片上传与编辑 -->
+        <div v-if="mode === 'inpainting'">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">底图与蒙版</label>
+            
+            <div v-if="!inpaintingFile" class="w-full">
+                <label class="flex justify-center w-full h-32 px-4 transition bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-xl appearance-none cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-gray-600 focus:outline-none relative overflow-hidden">
+                    <div class="flex flex-col items-center justify-center h-full">
+                        <svg class="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        <span class="mt-2 text-sm text-gray-500 dark:text-gray-400">点击上传底图</span>
+                    </div>
+                    <input type="file" ref="inpaintingFileInput" @change="handleInpaintingFileChange" accept="image/*" class="hidden">
+                </label>
+            </div>
+
+            <div v-else class="space-y-3">
+                <MaskEditor ref="maskEditorRef" :imageFile="inpaintingFile" />
+                <button type="button" @click="inpaintingFile = null" class="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
+                    更换底图
+                </button>
+            </div>
+        </div>
+
+        <!-- 普通模式下的参考图上传 -->
+        <div v-if="mode === 'generate'">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">参考图 (可选)</label>
             
             <div class="w-full">

@@ -1,6 +1,6 @@
 <script setup>
 import axios from 'axios';
-import { reactive, ref, watch, onMounted, onUnmounted } from 'vue';
+import { onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import ImageForm from './components/ImageForm.vue';
 import LogConsole from './components/LogConsole.vue';
 import PasskeyManager from './components/PasskeyManager.vue';
@@ -186,6 +186,12 @@ const submitTask = async (formDataObj) => {
                 formData.append('input_reference', url);
                 addLog(`添加参考 URL: ${url}`, 'info');
             });
+        }
+
+        // mask 逻辑
+        if (formDataObj.mask) {
+            formData.append('mask', formDataObj.mask);
+            addLog(`添加蒙版图片: ${formDataObj.mask.name}`, 'info');
         }
 
         addLog('正在向服务器提交请求...', 'info');
