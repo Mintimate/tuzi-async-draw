@@ -1,5 +1,8 @@
 <script setup>
-import { ref, watch, nextTick } from 'vue';
+import { nextTick, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     logs: {
@@ -25,9 +28,9 @@ watch(() => props.logs.length, () => {
             <pre class="mb-3 text-sm sm:text-base leading-tight font-mono text-gray-300 dark:text-gray-400 select-none text-center ascii-cat">(\_/)
 ( <span class="eye">o</span>.<span class="eye">o</span> )
 /> <\</pre>
-            <span class="animate-pulse mb-2">...等待任务启动，好奇地等待中...</span>
+            <span class="animate-pulse mb-2">{{ t('logConsole.waiting') }}</span>
             <a href="https://afdian.com/a/mintimate" target="_blank" class="text-xs text-purple-200 dark:text-purple-300 hover:text-purple-400 dark:hover:text-purple-200 transition-colors mt-1">
-                ⚡ 支持一下 (爱发电) ⚡
+                {{ t('logConsole.support') }}
             </a>
         </div>
         <div v-for="log in logs" :key="log.id" class="mb-1 break-all flex items-start">

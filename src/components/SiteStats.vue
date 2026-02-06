@@ -1,5 +1,8 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const stats = reactive({
   totalImages: 0,
@@ -92,7 +95,7 @@ defineExpose({
           <div class="relative bg-white/90 dark:bg-gray-800/70 backdrop-blur-sm px-5 py-4 rounded-2xl border border-indigo-100/60 dark:border-indigo-900/30 shadow-[0_8px_32px_rgba(99,102,241,0.08)] dark:shadow-[0_8px_32px_rgba(99,102,241,0.03)] hover:shadow-[0_12px_40px_rgba(99,102,241,0.15)] dark:hover:shadow-[0_12px_40px_rgba(99,102,241,0.1)] transition-all duration-300 flex flex-col items-center">
             <div class="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-gradient-to-r from-transparent via-indigo-400 dark:via-indigo-500 to-transparent rounded-b-full opacity-50 group-hover:opacity-100 transition-opacity"></div>
             
-            <span class="block text-[9px] text-gray-500 dark:text-gray-400 uppercase font-black tracking-[0.15em] mb-2">最近30天访客</span>
+            <span class="block text-[9px] text-gray-500 dark:text-gray-400 uppercase font-black tracking-[0.15em] mb-2">{{ t('siteStats.last30DaysVisits') }}</span>
             <div v-if="loading" class="h-7 flex items-center justify-center">
               <div class="h-1.5 w-10 bg-indigo-100 dark:bg-indigo-900/40 animate-pulse rounded-full"></div>
             </div>
@@ -107,7 +110,7 @@ defineExpose({
           <div class="relative bg-white/90 dark:bg-gray-800/70 backdrop-blur-sm px-5 py-4 rounded-2xl border border-purple-100/60 dark:border-purple-900/30 shadow-[0_8px_32px_rgba(168,85,247,0.08)] dark:shadow-[0_8px_32px_rgba(168,85,247,0.03)] hover:shadow-[0_12px_40px_rgba(168,85,247,0.15)] dark:hover:shadow-[0_12px_40px_rgba(168,85,247,0.1)] transition-all duration-300 flex flex-col items-center">
             <div class="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-gradient-to-r from-transparent via-purple-400 dark:via-purple-500 to-transparent rounded-b-full opacity-50 group-hover:opacity-100 transition-opacity"></div>
             
-            <span class="block text-[9px] text-gray-500 dark:text-gray-400 uppercase font-black tracking-[0.15em] mb-2">最近30天生成</span>
+            <span class="block text-[9px] text-gray-500 dark:text-gray-400 uppercase font-black tracking-[0.15em] mb-2">{{ t('siteStats.last30DaysImages') }}</span>
             <div v-if="loading" class="h-7 flex items-center justify-center">
               <div class="h-1.5 w-10 bg-purple-100 dark:bg-purple-900/40 animate-pulse rounded-full"></div>
             </div>
@@ -122,7 +125,7 @@ defineExpose({
           <div class="relative bg-white/90 dark:bg-gray-800/70 backdrop-blur-sm px-5 py-4 rounded-2xl border border-slate-100/60 dark:border-slate-800/60 shadow-[0_8px_32px_rgba(100,116,139,0.08)] dark:shadow-[0_8px_32px_rgba(100,116,139,0.03)] hover:shadow-[0_12px_40px_rgba(100,116,139,0.15)] dark:hover:shadow-[0_12px_40px_rgba(100,116,139,0.1)] transition-all duration-300 flex flex-col items-center">
             <div class="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-gradient-to-r from-transparent via-slate-400 dark:via-slate-600 to-transparent rounded-b-full opacity-50 group-hover:opacity-100 transition-opacity"></div>
             
-            <span class="block text-[9px] text-gray-500 dark:text-gray-400 uppercase font-black tracking-[0.15em] mb-2">累计生成</span>
+            <span class="block text-[9px] text-gray-500 dark:text-gray-400 uppercase font-black tracking-[0.15em] mb-2">{{ t('siteStats.totalImages') }}</span>
             <div v-if="loading" class="h-7 flex items-center justify-center">
               <div class="h-1.5 w-14 bg-slate-100 dark:bg-slate-700/40 animate-pulse rounded-full"></div>
             </div>

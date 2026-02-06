@@ -1,5 +1,8 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     result: Object,
@@ -60,16 +63,16 @@ const isVideo = computed(() => {
         <template v-else-if="loading">
             <div class="flex flex-col items-center justify-center">
                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
-                <p class="text-gray-500 dark:text-gray-400 animate-pulse">处理中...</p>
+                <p class="text-gray-500 dark:text-gray-400 animate-pulse">{{ t('resultDisplay.processing') }}</p>
             </div>
         </template>
 
         <template v-else>
             <div class="text-gray-400 dark:text-gray-500 text-center">
                 <svg class="w-16 h-16 mx-auto mb-3 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                <p>生成结果将在此显示</p>
-                <p v-if="mode === 'image'" class="text-xs mt-2 opacity-60">模式: 图像生成</p>
-                <p v-else class="text-xs mt-2 opacity-60">模式: 视频生成</p>
+                <p>{{ t('resultDisplay.placeholder') }}</p>
+                <p v-if="mode === 'image'" class="text-xs mt-2 opacity-60">{{ t('resultDisplay.modeImage') }}</p>
+                <p v-else class="text-xs mt-2 opacity-60">{{ t('resultDisplay.modeVideo') }}</p>
             </div>
         </template>
 

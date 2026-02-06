@@ -1,5 +1,8 @@
 <script setup>
 import { onUnmounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
   imageFile: {
@@ -208,14 +211,14 @@ defineExpose({
     <!-- 工具栏 -->
     <div class="flex items-center gap-4 bg-gray-50 dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
       <div class="flex-1 flex items-center gap-2">
-        <span class="text-xs text-gray-500 whitespace-nowrap">画笔大小</span>
+        <span class="text-xs text-gray-500 whitespace-nowrap">{{ t('maskEditor.brushSize') }}</span>
         <input type="range" v-model.number="brushSize" min="10" max="100" step="5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" />
         <span class="text-xs text-gray-500 w-8">{{ brushSize }}</span>
       </div>
       <button type="button" @click="clearCanvas" class="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/40 transition-colors">
-        清除蒙版
+        {{ t('maskEditor.clear') }}
       </button>
     </div>
-    <p class="text-xs text-gray-400">提示: 涂抹你想要修改的区域（红色区域将被重绘）</p>
+    <p class="text-xs text-gray-400">{{ t('maskEditor.hint') }}</p>
   </div>
 </template>

@@ -1,6 +1,9 @@
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
-import { startRegistration, startAuthentication, browserSupportsWebAuthn } from '@simplewebauthn/browser';
+import { browserSupportsWebAuthn, startAuthentication, startRegistration } from '@simplewebauthn/browser';
+import { onMounted, reactive, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
   baseUrl: {
@@ -64,7 +67,7 @@ const handleRegisterClick = () => {
   if (registerClickCount >= 3) {
     if (!showManageTab.value) {
       showManageTab.value = true;
-      log('管理模式已解锁', 'success');
+      log(t('passkey.logs.adminUnlocked'), 'success');
     }
     registerClickCount = 0;
   }
@@ -100,17 +103,17 @@ const callPasskeyAPI = async (action, data) => {
 // 注册 Passkey
 const registerPasskey = async () => {
   if (!form.username) {
-    log('请输入用户名', 'warning');
+    log(t('passkey.errors.enterUsername'), 'warning');
     return;
   }
 
   if (!props.currentToken) {
-    log('请先在首页填写 API Token', 'warning');
+    log(t('passkey.errors.enterToken'), 'warning');
     return;
   }
 
   loading.register = true;
-  log(`开始注册 Passkey: ${form.username}...`, 'info');
+  log(t('passkey.logs.startRegister', { username: form.username }), 'info');
   
   let currentChallengeId = null;
 
@@ -127,11 +130,11 @@ const registerPasskey = async () => {
 
     const { options, challengeId } = optionsResult.data;
     currentChallengeId = challengeId;
-    log('已获取注册选项，请在弹窗中完成验证...', 'info');
+    log(t('passkey.logs.getOptions'), 'info');
 
     // 2. 调用浏览器 WebAuthn API
     const registrationResponse = await startRegistration({ optionsJSON: options });
-    log('浏览器验证完成，正在提交到服务器...', 'info');
+    log(t('passkey.logs.browserVerify'), 'info');
 
     // 3. 验证注册响应
     const verifyResult = await callPasskeyAPI('verifyRegistration', {
@@ -145,7 +148,7 @@ const registerPasskey = async () => {
     
     currentChallengeId = null;
 
-    log('✅ Passkey 注册成功！', 'success');
+    log(t('passkey.logs.registerSuccess'), 'success');
     localStorage.setItem('tuzi_passkey_username', form.username);
     
     // 刷新凭证列表
@@ -162,11 +165,11 @@ const registerPasskey = async () => {
     }
     
     if (error.name === 'InvalidStateError') {
-      log('此设备已注册过 Passkey', 'warning');
+      log(t('passkey.errors.deviceRegistered'), 'warning');
     } else if (error.name === 'NotAllowedError') {
-      log('用户取消了操作或超时', 'warning');
+      log(t('passkey.errors.userCancelled'), 'warning');
     } else {
-      log(`注册失败: ${error.message}`, 'error');
+      log(t('passkey.errors.registerFailed', { message: error.message }), 'error');
     }
   } finally {
     loading.register = false;
@@ -176,7 +179,7 @@ const registerPasskey = async () => {
 // 使用 Passkey 登录
 const loginWithPasskey = async () => {
   loading.login = true;
-  log('正在使用 Passkey 登录...', 'info');
+  log(t('passkey.logs.loginStart'), 'info');
   
   let currentChallengeId = null;
 
@@ -190,11 +193,11 @@ const loginWithPasskey = async () => {
 
     const { options, challengeId } = optionsResult.data;
     currentChallengeId = challengeId;
-    log('已获取认证选项，请在弹窗中选择 Passkey...', 'info');
+    log(t('passkey.logs.getAuthOptions'), 'info');
 
     // 2. 调用浏览器 WebAuthn API
     const authenticationResponse = await startAuthentication({ optionsJSON: options });
-    log('浏览器验证完成，正在验证...', 'info');
+    log(t('passkey.logs.browserAuthComplete'), 'info');
 
     // 3. 验证认证响应
     const verifyResult = await callPasskeyAPI('verifyAuthentication', {
@@ -209,7 +212,7 @@ const loginWithPasskey = async () => {
     currentChallengeId = null;
 
     const { username, token } = verifyResult.data;
-    log(`✅ Passkey 登录成功！欢迎 ${username}`, 'success');
+    log(t('passkey.logs.loginSuccess', { username }), 'success');
     
     // 保存用户名
     localStorage.setItem('tuzi_passkey_username', username);
@@ -229,9 +232,9 @@ const loginWithPasskey = async () => {
     }
     
     if (error.name === 'NotAllowedError') {
-      log('用户取消了操作或超时', 'warning');
+      log(t('passkey.errors.userCancelled'), 'warning');
     } else {
-      log(`登录失败: ${error.message}`, 'error');
+      log(t('passkey.errors.loginFailed', { message: error.message }), 'error');
     }
   } finally {
     loading.login = false;
@@ -240,7 +243,7 @@ const loginWithPasskey = async () => {
 
 // 获取管理令牌（通过 Passkey 验证）
 const getManagementToken = async () => {
-  log('正在验证身份以获取管理权限...', 'info');
+  log(t('passkey.logs.verifyAdmin'), 'info');
   
   let currentChallengeId = null;
   
@@ -256,11 +259,11 @@ const getManagementToken = async () => {
 
     const { options, challengeId } = optionsResult.data;
     currentChallengeId = challengeId;
-    log('请在弹窗中完成验证...', 'info');
+    log(t('passkey.logs.verifyInModal'), 'info');
 
     // 2. 调用浏览器 WebAuthn API
     const authenticationResponse = await startAuthentication({ optionsJSON: options });
-    log('正在生成管理令牌...', 'info');
+    log(t('passkey.logs.genAdminToken'), 'info');
 
     // 3. 生成管理令牌
     const tokenResult = await callPasskeyAPI('generateManagementToken', {
@@ -275,7 +278,7 @@ const getManagementToken = async () => {
     currentChallengeId = null;
 
     managementToken.value = tokenResult.data.managementToken;
-    log('✅ 验证成功，已获取管理权限', 'success');
+    log(t('passkey.logs.adminSuccess'), 'success');
     return true;
   } catch (error) {
     console.error('Get management token error:', error);
@@ -285,9 +288,9 @@ const getManagementToken = async () => {
     }
     
     if (error.name === 'NotAllowedError') {
-      log('用户取消了操作或超时', 'warning');
+      log(t('passkey.errors.userCancelled'), 'warning');
     } else {
-      log(`验证失败: ${error.message}`, 'error');
+      log(t('passkey.errors.verifyFailed', { message: error.message }), 'error');
     }
     return false;
   }
@@ -310,7 +313,7 @@ const loadCredentials = async () => {
     }
   } catch (error) {
     console.error('Load credentials error:', error);
-    log(`加载失败: ${error.message}`, 'error');
+    log(t('passkey.errors.loadFailed', { message: error.message }), 'error');
   } finally {
     loading.list = false;
   }
@@ -345,17 +348,17 @@ const deleteCredentialById = async (credentialId) => {
     });
 
     if (result.code === 0) {
-      log('Passkey 已删除', 'success');
+      log(t('passkey.logs.deleted'), 'success');
       await loadCredentials();
     } else if (result.message.includes('管理令牌')) {
       // 令牌过期，重新获取
       managementToken.value = '';
-      log('管理令牌已过期，请重新验证后再试', 'warning');
+      log(t('passkey.errors.tokenExpired'), 'warning');
     } else {
       throw new Error(result.message);
     }
   } catch (error) {
-    log(`删除失败: ${error.message}`, 'error');
+    log(t('passkey.errors.deleteFailed', { message: error.message }), 'error');
   } finally {
     loading.delete = false;
   }
