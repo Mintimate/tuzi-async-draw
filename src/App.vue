@@ -332,7 +332,7 @@ const queryTask = async () => {
             <header class="text-center mb-12 flex flex-col items-center">
                 <div class="flex items-center gap-4 mb-2 justify-center">
                     <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
-                        Tuzi Async Studio
+                        Tuzi 智绘工坊
                     </h1>
                     <!-- Theme Selector -->
                     <div class="flex items-center p-1 bg-gray-200 dark:bg-gray-700 rounded-lg transition-colors border border-gray-300 dark:border-gray-600">
@@ -359,7 +359,9 @@ const queryTask = async () => {
                         </button>
                     </div>
                 </div>
-                <p class="text-lg text-gray-600 dark:text-gray-400">基于 Tuzi API 的高性能异步生图/视频工具</p>
+                <p class="mt-3 text-base sm:text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto leading-relaxed">
+                    封装 Tuzi API 异步接口，提供<span class="font-semibold text-indigo-600 dark:text-indigo-400">“二段跳”</span>式的高效生图与视频创作体验
+                </p>
             </header>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
