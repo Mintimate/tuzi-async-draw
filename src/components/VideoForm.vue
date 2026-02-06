@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, reactive, ref } from 'vue';
+import { onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 
 const props = defineProps({
     loading: Boolean,
@@ -18,6 +18,20 @@ const form = reactive({
 });
 
 const fileInput = ref(null);
+
+// 图片预览 URL 管理
+const previewUrls = ref([]);
+
+const updatePreviewUrls = (files) => {
+    // 先释放旧的 URL
+    previewUrls.value.forEach(url => URL.revokeObjectURL(url));
+    // 创建新的预览 URL
+    previewUrls.value = files.map(file => URL.createObjectURL(file));
+};
+
+watch(() => form.files, (newFiles) => {
+    updatePreviewUrls(newFiles || []);
+}, { deep: true });
 
 const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
@@ -65,6 +79,8 @@ onMounted(() => {
 
 onUnmounted(() => {
     window.removeEventListener('paste', handlePaste);
+    // 释放所有预览 URL
+    previewUrls.value.forEach(url => URL.revokeObjectURL(url));
 });
 
 const handleSubmit = () => {
@@ -144,11 +160,18 @@ const handleSubmit = () => {
                 </label>
                 
                 <div v-if="form.files && form.files.length > 0" class="mt-3 flex flex-wrap gap-2">
-                    <span v-for="(file, idx) in form.files" :key="idx" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500">
+                    <span v-for="(file, idx) in form.files" :key="idx" class="relative group inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 cursor-pointer">
                         {{ file.name }}
                         <button type="button" @click="removeFile(idx)" class="ml-1.5 text-gray-400 hover:text-red-500 focus:outline-none transition-colors" title="移除文件">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                         </button>
+                        <!-- 悬浮预览 -->
+                        <div v-if="previewUrls[idx]" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 pointer-events-none">
+                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-600 p-1">
+                                <img :src="previewUrls[idx]" :alt="file.name" decoding="async" class="max-w-48 max-h-48 rounded object-contain" />
+                            </div>
+                            <div class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-2 h-2 bg-white dark:bg-gray-800 border-r border-b border-gray-200 dark:border-gray-600 rotate-45"></div>
+                        </div>
                     </span>
                 </div>
             </div>
