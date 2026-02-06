@@ -1,12 +1,13 @@
 <script setup>
-import { reactive, ref } from 'vue';
+import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import MaskEditor from './MaskEditor.vue';
 
 const props = defineProps({
-    loading: Boolean
+    loading: Boolean,
+    isActive: Boolean
 });
 
-const emit = defineEmits(['submit']);
+const emit = defineEmits(['submit', 'log']);
 
 const mode = ref('generate'); // 'generate' | 'inpainting'
 const maskEditorRef = ref(null);
@@ -28,6 +29,7 @@ const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
     if (selectedFiles.length > 0) {
         form.files = selectedFiles;
+        emit('log', { content: `已选择 ${selectedFiles.length} 个参考图文件`, type: 'success' });
     } else {
         form.files = [];
     }
@@ -37,8 +39,54 @@ const handleInpaintingFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
         inpaintingFile.value = file;
+        emit('log', { content: `已选择底图: ${file.name}`, type: 'success' });
     }
 };
+
+const removeFile = (index) => {
+    const file = form.files[index];
+    form.files.splice(index, 1);
+    emit('log', { content: `已移除参考图: ${file.name}`, type: 'info' });
+};
+
+const handlePaste = (e) => {
+    if (!props.isActive) return;
+
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const pastedFiles = [];
+    for (const item of items) {
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+            const file = item.getAsFile();
+            if (file) pastedFiles.push(file);
+        }
+    }
+
+    if (pastedFiles.length > 0) {
+        e.preventDefault();
+        
+        if (mode.value === 'inpainting') {
+            inpaintingFile.value = pastedFiles[0];
+            emit('log', { content: `已粘贴底图: ${pastedFiles[0].name}`, type: 'success' });
+        } else {
+            // Generate 模式，追加文件
+            const currentFiles = Array.isArray(form.files) ? form.files : [];
+            form.files = [...currentFiles, ...pastedFiles];
+            pastedFiles.forEach(f => {
+                emit('log', { content: `已粘贴参考图: ${f.name}`, type: 'success' });
+            });
+        }
+    }
+};
+
+onMounted(() => {
+    window.addEventListener('paste', handlePaste);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('paste', handlePaste);
+});
 
 const handleSubmit = async () => {
     const submitData = { ...form };
@@ -185,7 +233,7 @@ const handleSubmit = async () => {
                 <label class="flex justify-center w-full h-32 px-4 transition bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-xl appearance-none cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-gray-600 focus:outline-none relative overflow-hidden">
                     <div class="flex flex-col items-center justify-center h-full">
                         <svg class="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                        <span class="mt-2 text-sm text-gray-500 dark:text-gray-400">点击上传底图</span>
+                        <span class="mt-2 text-sm text-gray-500 dark:text-gray-400">点击上传或粘贴底图</span>
                     </div>
                     <input type="file" ref="inpaintingFileInput" @change="handleInpaintingFileChange" accept="image/*" class="hidden">
                 </label>
@@ -214,7 +262,7 @@ const handleSubmit = async () => {
 
                     <div v-else class="flex flex-col items-center justify-center h-full">
                         <svg class="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                        <span class="mt-2 text-sm text-gray-500 dark:text-gray-400">点击上传或拖拽 (支持多选)</span>
+                        <span class="mt-2 text-sm text-gray-500 dark:text-gray-400">点击上传、拖拽或粘贴 (支持多选)</span>
                     </div>
                     
                     <input type="file" ref="fileInput" @change="handleFileChange" accept="image/*" multiple class="hidden">
@@ -227,6 +275,9 @@ const handleSubmit = async () => {
                 <div v-if="form.files && form.files.length > 0" class="mt-3 flex flex-wrap gap-2">
                     <span v-for="(file, idx) in form.files" :key="idx" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500">
                         {{ file.name }}
+                        <button type="button" @click="removeFile(idx)" class="ml-1.5 text-gray-400 hover:text-red-500 focus:outline-none transition-colors" title="移除文件">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
                     </span>
                 </div>
             </div>

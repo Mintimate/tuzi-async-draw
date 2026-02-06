@@ -1,11 +1,12 @@
 <script setup>
-import { reactive, ref } from 'vue';
+import { onMounted, onUnmounted, reactive, ref } from 'vue';
 
 const props = defineProps({
-    loading: Boolean
+    loading: Boolean,
+    isActive: Boolean
 });
 
-const emit = defineEmits(['submit']);
+const emit = defineEmits(['submit', 'log']);
 
 const form = reactive({
     model: 'veo3.1',
@@ -22,10 +23,49 @@ const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
     if (selectedFiles.length > 0) {
         form.files = selectedFiles;
+        emit('log', { content: `已选择 ${selectedFiles.length} 个参考图文件`, type: 'success' });
     } else {
         form.files = [];
     }
 };
+
+const removeFile = (index) => {
+    const file = form.files[index];
+    form.files.splice(index, 1);
+    emit('log', { content: `已移除参考图: ${file.name}`, type: 'info' });
+};
+
+const handlePaste = (e) => {
+    if (!props.isActive) return;
+
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const pastedFiles = [];
+    for (const item of items) {
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+            const file = item.getAsFile();
+            if (file) pastedFiles.push(file);
+        }
+    }
+
+    if (pastedFiles.length > 0) {
+        e.preventDefault();
+        const currentFiles = Array.isArray(form.files) ? form.files : [];
+        form.files = [...currentFiles, ...pastedFiles];
+        pastedFiles.forEach(f => {
+            emit('log', { content: `已粘贴参考图: ${f.name}`, type: 'success' });
+        });
+    }
+};
+
+onMounted(() => {
+    window.addEventListener('paste', handlePaste);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('paste', handlePaste);
+});
 
 const handleSubmit = () => {
     emit('submit', { ...form });
@@ -97,7 +137,7 @@ const handleSubmit = () => {
 
                     <div v-else class="flex flex-col items-center justify-center h-full">
                         <svg class="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                        <span class="mt-2 text-sm text-gray-500 dark:text-gray-400">点击上传图片 (支持多张)</span>
+                        <span class="mt-2 text-sm text-gray-500 dark:text-gray-400">点击上传或粘贴图片 (支持多张)</span>
                     </div>
                     
                     <input type="file" ref="fileInput" @change="handleFileChange" accept="image/*" multiple class="hidden">
@@ -106,6 +146,9 @@ const handleSubmit = () => {
                 <div v-if="form.files && form.files.length > 0" class="mt-3 flex flex-wrap gap-2">
                     <span v-for="(file, idx) in form.files" :key="idx" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500">
                         {{ file.name }}
+                        <button type="button" @click="removeFile(idx)" class="ml-1.5 text-gray-400 hover:text-red-500 focus:outline-none transition-colors" title="移除文件">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
                     </span>
                 </div>
             </div>

@@ -446,10 +446,20 @@ const queryTask = async () => {
                         
                         <!-- Content -->
                         <div v-show="activeTab === 'image'">
-                            <ImageForm :loading="loading.submit" @submit="submitTask" />
+                            <ImageForm 
+                                :loading="loading.submit" 
+                                :isActive="activeTab === 'image'"
+                                @submit="submitTask" 
+                                @log="({content, type}) => addLog(content, type)"
+                            />
                         </div>
                         <div v-show="activeTab === 'video'">
-                            <VideoForm :loading="loading.submit" @submit="submitTask" />
+                            <VideoForm 
+                                :loading="loading.submit" 
+                                :isActive="activeTab === 'video'"
+                                @submit="submitTask" 
+                                @log="({content, type}) => addLog(content, type)"
+                            />
                         </div>
                     </div>
                 </div>
